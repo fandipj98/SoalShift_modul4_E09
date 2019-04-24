@@ -43,17 +43,17 @@ char dekripsi(char *nama)
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
   int res;
-	char fpath[1000],a[1000];
+	char fpath[1000],path_temp[1000];
 	
-	strcpy(a,path);
-	printf("------a sebelum: %s------\n",a);
+	strcpy(path_temp,path);
+	printf("------path_temp sebelum: %s------\n",path_temp);
 
-	dekripsi(a);
+	dekripsi(path_temp);
 	
-	sprintf(fpath,"%s%s",dirpath,a);
+	sprintf(fpath,"%s%s",dirpath,path_temp);
 	
 	printf("------dirpath: %s------\n",dirpath);
-	printf("------a setelah: %s------\n",a);
+	printf("------path_temp setelah: %s------\n",path_temp);
 	printf("------fpath: %s------\n",fpath);
 	
 	res = lstat(fpath, stbuf);
@@ -67,16 +67,22 @@ static int xmp_getattr(const char *path, struct stat *stbuf)
 static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
-  	char fpath[1000];
-	printf("--------------path1 dalam readdir: %s---------------\n", path);
-	if(strcmp(path,"/") == 0)
+  	char fpath[1000],path_temp[1000];
+	
+	strcpy(path_temp,path);
+	printf("--------------path_temp sebelum readdir: %s---------------\n", path_temp);
+	
+	dekripsi(path_temp);
+	
+	printf("--------------path_temp setelah readdir: %s---------------\n", path_temp);
+	
+	if(strcmp(path_temp,"/") == 0)
 	{
-		path=dirpath;
-		sprintf(fpath,"%s",path);
+		sprintf(fpath,"%s",dirpath);
 		printf("--------------path dalam if readdir: %s---------------\n", fpath);
 	}
 	else{
-		sprintf(fpath, "%s%s",dirpath,path);
+		sprintf(fpath, "%s%s",dirpath,path_temp);
 		printf("--------------path1 dalam else readdir: %s---------------\n", fpath);
 	} 
 	int res = 0;
