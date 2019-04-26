@@ -64,6 +64,143 @@ int main(int argc, char *argv[])
 ```
 Kemudian untuk setiap fungsi fuse yang ada, path awalnya dienkripsi karena mountpoint fusenya dalam bentuk dekripsi dari folder `/home/[user]/shift4` yang sudah terenkripsi sebelum di mount. Kemudian khusus untuk fungsi `xmp_readdir()` sebelum di `filler()`, maka path harus didekripsi terlebih dahulu agar bisa dibaca difolder fusenya.
 
+## Nomor 2
+### Soal:
+2. Semua file video yang tersimpan secara terpecah-pecah (splitted) harus secara otomatis tergabung (joined) dan diletakkan dalam folder “Videos”
+<br/>Urutan operasi dari kebutuhan ini adalah:
+<br/>a. Tepat saat sebelum file system di-mount
+	<br/>i. Secara otomatis folder “Videos” terbuat di root directory file system
+	<br/>ii. Misal ada sekumpulan file pecahan video bernama “computer.mkv.000”, “computer.mkv.001”, “computer.mkv.002”, dst. Maka secara otomatis file pecahan tersebut akan di-join menjadi file video “computer.mkv”
+Untuk mempermudah kalian, dipastikan hanya video file saja yang terpecah menjadi beberapa file. File pecahan tersebut dijamin terletak di root folder fuse
+	<br/>iii. Karena mungkin file video sangat banyak sehingga mungkin saja saat menggabungkan file video, file system akan membutuhkan waktu yang lama untuk sukses ter-mount. Maka pastikan saat akan menggabungkan file pecahan video, file system akan membuat 1 thread/proses(fork) baru yang dikhususkan untuk menggabungkan file video tersebut
+	<br/>iv. Pindahkan seluruh file video yang sudah ter-join ke dalam folder “Videos”
+	<br/>v. Jangan tampilkan file pecahan di direktori manapun
+<br/>b. Tepat saat file system akan di-unmount
+<br/>i. Hapus semua file video yang berada di folder “Videos”, tapi jangan hapus file pecahan yang terdapat di root directory file system
+<br/>ii. Hapus folder “Videos” 
+### Jawaban:
+Dalam soal ini kita membutuhkan fungsi `xmp_init()` yaitu fungsi yang dijalankan sebelum fuse di mount dan fungsi `xmp_destroy()` yaitu fungsi yang dijalankan sebelum fuse di unmount dan thread `merge()` untuk menggabungkan video kedalam folder `/Video`.fungsi `xmp_init()` memanggil thread `merge()` dan fungsi `xmp_destroy()` berisi fungsi untuk mendestroy folder `/Video` dan semua file didalamnya. Syntax nya adalah seperti berikut ini:
+```
+void incr(char x[1005]) {
+		printf("%s\n", x);
+	if (x[3] != '9') {
+		x[3] = x[3] + 1;
+		return;
+	}
+	x[3] = '0';
+	if (x[2] != '9') {
+		x[2] = x[2] + 1;
+		return;
+	}
+	x[2] = '0';
+	x[1] = x[1] + 1;
+	return;
+}
+
+void* merge(void *arg) {
+	char root[1005] = "/home/fandipj/shift4";
+	char *fpath = (char*)arg;
+	printf("%s\n", (char*)arg);
+	fpath[strlen(fpath) - 4] = '\0';
+	char vid[1005] = "/Video";
+	enkripsi(vid);
+	strcat(root, vid);
+	strcat(root, fpath + 20);
+	dekripsi(root);
+	printf("%s\n", root);
+	enkripsi(root);
+	FILE* lastfile = fopen(root, "a");
+	strcat(vid, fpath);
+	FILE *fp;
+	char counter[1005] = ".000";
+	char nowpath[1005];
+	char encryptcounter[1005];
+	strcpy(encryptcounter, counter);
+	enkripsi(encryptcounter);
+	strcpy(nowpath, fpath);
+	strcat(nowpath, encryptcounter);
+	printf("%s\n", nowpath);
+	while ((fp = fopen(nowpath, "r"))) {
+		char c;
+		while ((c = fgetc(fp)) != EOF) 
+		{ 
+  		    fputc(c, lastfile); 
+  		}
+		fclose(fp);
+		incr(counter);
+		strcpy(encryptcounter, counter);
+		enkripsi(encryptcounter);
+		strcpy(nowpath, fpath);
+		strcat(nowpath, encryptcounter);
+		printf("%s\n", nowpath);
+	}
+	fclose(lastfile);
+	return NULL;
+}
+
+void *xmp_init(struct fuse_conn_info *conn) {
+	char root[1005] = "/home/fandipj/shift4";
+	DIR *dp;
+	struct dirent *de;
+	char vid[1005];
+	char tmpp[1005] = "/Video";
+	enkripsi(tmpp);
+	strcpy(vid, root);
+	strcat(vid, tmpp);
+	int err = mkdir(vid, 0750);
+	printf("%s %d\n", vid, err);
+	dp = opendir(root);
+	int i = 0;
+	while ((de = readdir(dp)) != NULL) {
+		struct stat st;
+		char tmppath[1005];
+		strcpy(tmppath, root);
+		strcat(tmppath, "/");
+		strcpy(tmpp, de->d_name);
+		strcat(tmppath, tmpp);
+		stat(tmppath, &st);
+		if (S_ISREG(st.st_mode) == 0)
+			continue;
+		int sz = strlen(de->d_name);
+		char name[1005];
+		strcpy(name, de->d_name);
+		dekripsi(name);
+		if (name[sz - 1] != '0' || name[sz - 2] != '0' || name[sz - 3] != '0'
+			|| name[sz - 4] != '.')
+			continue;
+		printf("%s\n", tmppath);
+		printf("%s\n", name);
+		pthread_create(&(tid[0]), NULL, &merge, tmppath);
+		pthread_join(tid[0],NULL);
+		i++;
+	}
+	
+	closedir(dp);
+
+	return NULL;
+}
+
+void xmp_destroy(void* privateData) {
+	char root[1005] = "/home/fandipj/shift4/g[xO#";
+	DIR *dp;
+	struct dirent *de;
+	printf("%s\n", root);
+	dp = opendir(root);
+	while ((de = readdir(dp)) != NULL) {
+		char path[1005];
+		strcpy(path, root);
+		strcat(path, "/");
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
+			continue;
+		strcat(path, de->d_name);
+		printf("%s\n", path);
+		remove(path);
+	}
+	closedir(dp);
+	rmdir(root);
+}
+```
+
 ## Nomor 3
 ### Soal:
 3. Sebelum diterapkannya file system ini, Atta pernah diserang oleh hacker LAPTOP_RUSAK yang menanamkan user bernama “chipset” dan “ic_controller” serta group “rusak” yang tidak bisa dihapus. Karena paranoid, Atta menerapkan aturan pada file system ini untuk menghapus “file bahaya” yang memiliki spesifikasi:
@@ -86,7 +223,66 @@ while ((de = readdir(dp)) != NULL) {
 ```
 Kemudian untuk mendapatkan status dari user, maka digunakan `struct passwd` dan untuk mendapatkan status dari group, maka digunakan `struct group`. Kemudian dalam fungsi `xmp_readdir()` dilakukan pengecekan jika usernya bernama "chipset" atau "ic_controller" dan groupnya adalah "rusak", maka buat file baru dengan `FILE` dan mengambil time pada saat akses terakhir file yang usernya  bernama "chipset" atau "ic_controller" dan groupnya adalah "rusak", mengambil nama file, group ID, owner ID. Kemudian memasukkan informasi tersebut kedalam file "filemiris.txt". Kemudian, file yang usernya  bernama "chipset" atau "ic_controller" dan groupnya adalah "rusak" akan dihapus dengan fungsi c `remove()`. Syntaxnya adalah seperti berikut ini:
 ```
+while ((de = readdir(dp)) != NULL) {
+	if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+		continue;
+	}
+	struct stat st;
+	memset(&st, 0, sizeof(st));
+	st.st_ino = de->d_ino;
+	st.st_mode = de->d_type << 12;
+	struct stat tmp;
+	char tmppath[1005];
+	strcpy(tmppath, fpath);
+	strcat(tmppath, "/");
+	strcat(tmppath, de->d_name);
+	stat(tmppath, &tmp);
+	dekripsi(de->d_name);
+	printf("NAMA FILE %s\n", de->d_name);
+	struct passwd *pw = getpwuid(tmp.st_uid);
+	struct group *gr = getgrgid(tmp.st_gid);
+	printf("Name %s, Group %s\n", pw->pw_name, gr->gr_name);
+	if ((strcmp(pw->pw_name, "chipset") == 0 || strcmp(pw->pw_name, "ic_controller") == 0) && strcmp(gr->gr_name, "rusak") == 0 &&  (tmp.st_mode & 4) == 0) {
+		printf("Masuk Pak Eko\n");
+		FILE* fptr;
+		char accesstime[55];
+		time_t t = tmp.st_atime;
+		struct tm lt;
+		localtime_r(&t, &lt);
 
+		strftime(accesstime, 55, "%d.%m.%Y %H:%M:%S", &lt);
+		char buffer[1005];
+		memset(buffer, 0, sizeof(buffer));
+		strcat(buffer, de->d_name);
+		enkripsi(de->d_name);
+		strcat(buffer, " ");
+		char ttt[15];
+		sprintf(ttt, "%d", gr->gr_gid);
+		strcat(buffer, ttt);
+		sprintf(ttt, "%d", pw->pw_uid);
+		strcat(buffer, " ");
+		strcat(buffer, ttt);
+		strcat(buffer, " ");
+		strcat(buffer, accesstime);
+		char miris[1005] = "filemiris.txt";
+		enkripsi(miris);
+		char dest[1005];
+		strcpy(dest, fpath);
+		strcat(dest, "/");
+		strcat(dest, miris);
+		printf("%s\n", dest);
+		fptr = fopen(dest, "a+");
+		printf("%s\n", buffer);
+		fprintf(fptr, "%s\n", buffer);
+		fclose(fptr);
+		printf("%s\n", de->d_name);
+		strcpy(dest, fpath);
+		strcat(dest, "/");
+		strcat(dest, de->d_name);
+		remove(dest);
+		continue;
+	}
+}
 ```
 
 ## Nomor 4
