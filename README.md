@@ -444,3 +444,81 @@ static int xmp_chmod(const char *path, mode_t mode)
 	return 0;
 }
 ```
+## Nomor 5
+### Soal:
+5. Ketika mengedit suatu file dan melakukan save, maka akan terbuat folder baru bernama Backup kemudian hasil dari save tersebut akan disimpan pada backup dengan nama namafile_[timestamp].ekstensi. Dan ketika file asli dihapus, maka akan dibuat folder bernama RecycleBin, kemudian file yang dihapus beserta semua backup dari file yang dihapus tersebut (jika ada) di zip dengan nama namafile_deleted_[timestamp].zip dan ditaruh ke dalam folder RecycleBin (file asli dan backup terhapus). Dengan format [timestamp] adalah yyyy-MM-dd_HH:mm:ss
+### Jawaban:
+Pertama - tama pada fungsi `xmp_write()` buat folder `/Backup` kemudian buat thread `makebak()`kemudian didalam nya akan menggunakan fungsi `execlp()`untuk mencopy file backup ke folder `/Backup`. Syntaxnya seperti berikut ini:
+```
+void* makebak(void*arg) {
+	char root[1005] = "/home/fandipj/shift4";
+    char bak[1005] = "/Backup";
+	enkripsi(bak);
+	char arg2[1005];
+	strcpy(arg2, root);
+	strcat(arg2, bak); 
+	char *tmp = (char*)arg;
+    char final[1005];
+    strcat(final, tmp);
+	char* token = strtok(tmp, "/");
+	char last[1005]; 
+    while (token != NULL) { 
+        strcpy(last, token);
+        token = strtok(NULL, "/"); 
+    } 
+    printf("%s\n", final);
+	execlp("cp", "cp", final, arg2, NULL);
+	return NULL;
+}
+
+static int xmp_write(const char *path, const char *buf, size_t size,
+		     off_t offset, struct fuse_file_info *fi)
+{
+	char fpath[1000],path_temp[1000];
+	
+	strcpy(path_temp,path);
+	printf("--------------path_temp sebelum readdir: %s---------------\n", path_temp);
+	
+	enkripsi(path_temp);
+	
+	printf("--------------path_temp setelah readdir: %s---------------\n", path_temp);
+	
+	if(strcmp(path_temp,"/") == 0)
+	{
+		sprintf(fpath,"%s",dirpath);
+		printf("--------------path dalam if readdir: %s---------------\n", fpath);
+	}
+	else{
+		sprintf(fpath, "%s%s",dirpath,path_temp);
+		printf("--------------path1 dalam else readdir: %s---------------\n", fpath);
+	}
+
+	int fd;
+	int res;
+
+	(void) fi;
+	fd = open(fpath, O_WRONLY);
+	if (fd == -1)
+		return -errno;
+
+	res = pwrite(fd, buf, size, offset);
+	if (res == -1)
+		res = -errno;
+
+	close(fd);
+	int sz = strlen(path);
+	if (sz > 4 && path[sz - 1] == 'p' && path[sz - 2] == 'w' && path[sz - 3] == 's' && path[sz - 4] == '.') {
+		return res;
+	}
+	char final[1005] = "/home/fandipj/shift4";
+	char root[1005] = "/Backup";
+	enkripsi(root);
+	strcat(final, root);
+	int err = mkdir(final, 0750);
+	printf("%s %d\n", final, err);
+	pthread_create(&(tid[1]), NULL, &makebak, fpath);
+	pthread_join(tid[1],NULL);
+
+	return res; 
+}
+```
