@@ -128,6 +128,28 @@ void* merge(void *arg) {
 	return NULL;
 }
 
+void* makebak(void*arg) {
+	char root[1005] = "/home/fandipj/shift4";
+    char bak[1005] = "/Backup";
+	enkripsi(bak);
+	char arg2[1005];
+	strcpy(arg2, root);
+	strcat(arg2, bak); 
+	char *tmp = (char*)arg;
+    char final[1005];
+    strcat(final, tmp);
+	char* token = strtok(tmp, "/");
+	char last[1005]; 
+    while (token != NULL) { 
+        strcpy(last, token);
+        token = strtok(NULL, "/"); 
+    } 
+    printf("%s\n", final);
+	execlp("cp", "cp", final, arg2, NULL);
+	return NULL;
+}
+
+
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
   int res;
@@ -356,7 +378,20 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 		res = -errno;
 
 	close(fd);
-	return res;
+	int sz = strlen(path);
+	if (sz > 4 && path[sz - 1] == 'p' && path[sz - 2] == 'w' && path[sz - 3] == 's' && path[sz - 4] == '.') {
+		return res;
+	}
+	char final[1005] = "/home/fandipj/shift4";
+	char root[1005] = "/Backup";
+	enkripsi(root);
+	strcat(final, root);
+	int err = mkdir(final, 0750);
+	printf("%s %d\n", final, err);
+	pthread_create(&(tid[1]), NULL, &makebak, fpath);
+	pthread_join(tid[1],NULL);
+
+	return res; 
 }
 
 static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi)
@@ -654,7 +689,6 @@ void xmp_destroy(void* privateData) {
 	closedir(dp);
 	rmdir(root);
 }
-
 
 static struct fuse_operations xmp_oper = {
 	.getattr	= xmp_getattr,
