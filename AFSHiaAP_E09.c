@@ -16,7 +16,6 @@
 #include <time.h>
 #include <pthread.h>
 
-
 static const char *dirpath = "/home/fandipj/shift4";
 char cipher[] = "qE1~ YMUR2\"`hNIdPzi%^t@(Ao:=CQ,nx4S[7mHFye#aT6+v)DfKL$r?bkOGB>}!9_wV']jcp5JZ&Xl|\\8s;g<{3.u*W-0";
 char temp_path[1005];
@@ -56,46 +55,77 @@ void* renamefile(void *arg)
 {
 	char *path_now = (char*)arg;
 	pthread_t id = pthread_self();
-	//while(1){
-		if (pthread_equal(id, tid[0])) {
-			if (strstr(path_now, "/YOUTUBER") != NULL) {
-				while (flag == 0) {}
-				char newname[1005],oldname[1005];
-				enkripsi(path_now);
-				sprintf(oldname, "%s%s",dirpath,path_now);
-				strcpy(newname, oldname);
-				char ext[] = ".iz1";
-				enkripsi(ext);
-				strcat(newname, ext);
-				printf("==****NEWNAME: %s\n", newname);
-				rename(oldname, newname);
-			}
+	if (pthread_equal(id, tid[0])) {
+		if (strstr(path_now, "/YOUTUBER") != NULL) {
+			while (flag == 0) {}
+			char newname[1005],oldname[1005];
+			enkripsi(path_now);
+			sprintf(oldname, "%s%s",dirpath,path_now);
+			strcpy(newname, oldname);
+			char ext[] = ".iz1";
+			enkripsi(ext);
+			strcat(newname, ext);
+			rename(oldname, newname);
 		}
-	//}
+	}
 	return NULL;
 }
 
-void* merge(void *arg) {
-	char ret[1005];
-	char *fpath = (char*)arg;
-	dp = opendir(fpath);
-	while ((de = readdir(dp)) != NULL) {
-		struct stat st;
-		char tmppath[1005];
-		strcpy(tmppath, fpath);
-		strcat(tmppath, "/");
-		strcat(tmppath, de->d_name);
-		stat(tmppath, &st);
-		if (S_ISREG(st.st_mode) == 0)
-			continue;
-		if (strlen(de->d_name) < 5)
-			continue;
-		int sz = strlen(de->d_name);
-		if (de->d_name[strlen - 1] != '0' || de->d_name[strlen - 2] != '0' || de->d_name[strlen - 3] != '0'
-			|| de->d_name[strlen - 4] != '.')
-			continue;
-		pthread_create(&(tid[0]), NULL, &merge, tmppath);
+void incr(char x[1005]) {
+		printf("%s\n", x);
+	if (x[3] != '9') {
+		x[3] = x[3] + 1;
+		return;
 	}
+	x[3] = '0';
+	if (x[2] != '9') {
+		x[2] = x[2] + 1;
+		return;
+	}
+	x[2] = '0';
+	x[1] = x[1] + 1;
+	return;
+}
+
+void* merge(void *arg) {
+	char root[1005] = "/home/fandipj/shift4";
+	char *fpath = (char*)arg;
+	printf("%s\n", (char*)arg);
+	fpath[strlen(fpath) - 4] = '\0';
+	char vid[1005] = "/Video";
+	enkripsi(vid);
+	strcat(root, vid);
+	strcat(root, fpath + 20);
+	dekripsi(root);
+	printf("%s\n", root);
+	enkripsi(root);
+	FILE* lastfile = fopen(root, "a");
+	strcat(vid, fpath);
+	FILE *fp;
+	char counter[1005] = ".000";
+	char nowpath[1005];
+	char encryptcounter[1005];
+	strcpy(encryptcounter, counter);
+	enkripsi(encryptcounter);
+	strcpy(nowpath, fpath);
+	strcat(nowpath, encryptcounter);
+	printf("%s\n", nowpath);
+	while ((fp = fopen(nowpath, "r"))) {
+		char c;
+		while ((c = fgetc(fp)) != EOF) 
+		{ 
+  		    fputc(c, lastfile); 
+  		}
+		fclose(fp);
+		incr(counter);
+		strcpy(encryptcounter, counter);
+		enkripsi(encryptcounter);
+		strcpy(nowpath, fpath);
+		strcat(nowpath, encryptcounter);
+		printf("%s\n", nowpath);
+	}
+	fclose(lastfile);
+	return NULL;
 }
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
@@ -181,25 +211,26 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			struct tm lt;
 			localtime_r(&t, &lt);
 
-			// strftime(timbuf, sizeof(timbuf), "%c", &lt);
 			strftime(accesstime, 55, "%d.%m.%Y %H:%M:%S", &lt);
 			char buffer[1005];
 			memset(buffer, 0, sizeof(buffer));
 			strcat(buffer, de->d_name);
 			enkripsi(de->d_name);
 			strcat(buffer, " ");
-			strcat(buffer, gr->gr_name);
+			char ttt[15];
+			sprintf(ttt, "%d", gr->gr_gid);
+			strcat(buffer, ttt);
+			sprintf(ttt, "%d", pw->pw_uid);
 			strcat(buffer, " ");
-			strcat(buffer, pw->pw_name);
+			strcat(buffer, ttt);
 			strcat(buffer, " ");
 			strcat(buffer, accesstime);
-			char miris[1005] = "miris.txt";
+			char miris[1005] = "filemiris.txt";
 			enkripsi(miris);
 			char dest[1005];
 			strcpy(dest, fpath);
 			strcat(dest, "/");
 			strcat(dest, miris);
-			// enkripsi(de->d_name);
 			printf("%s\n", dest);
 			fptr = fopen(dest, "a+");
 			printf("%s\n", buffer);
@@ -212,17 +243,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			remove(dest);
 			continue;
 		}
-
-		// if (strstr(path, "/YOUTUBER") != NULL) {
-		// 	char tempname[1005];
-		// 	strcpy(tempname, de->d_name);
-		// 	if (S_ISREG(st.st_mode))
-		// 		strcat(tempname, ".iz1");
-
-		// 	// printf("NAMANYA %s\n", tempname);
-		// 	res = (filler(buf, tempname, &st, 0));
-		// } else
-			res = (filler(buf, de->d_name, &st, 0));
+		res = (filler(buf, de->d_name, &st, 0));
 		if(res!=0) break;
 	}
 
@@ -347,7 +368,6 @@ static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	
 	if (strstr(path_temp, "/YOUTUBER") != NULL) {
 		mode = 0000640;
-		//strcat(path_temp, ".iz1");
 	}
 
 	enkripsi(path_temp);
@@ -364,17 +384,6 @@ static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		printf("--------------path dalam else create: %s---------------\n", fpath);
 	}
 
-	// printf("FPATH akhir: %s\n", fpath);
-	// if (strstr(path, "/YOUTUBER") != NULL) {
-	// 	char newname[1005];
-	// 	strcpy(newname, fpath);
-	// 	char ext[] = ".iz1";
-	// 	enkripsi(ext);
-	// 	strcat(newname, ext);
-	// 	// strcpy(fpath, )
-	// 	// printf("%s\n", newname);
-	// 	// rename(fpath, newname);
-	// }
 	memset(temp_path,0,sizeof(temp_path));
 	strcpy(temp_path,path);
 	
@@ -415,7 +424,6 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 		sprintf(fpath, "%s%s",dirpath,path_temp);
 		printf("--------------path1 dalam else readdir: %s---------------\n", fpath);
 	}
-
 	int res;
 
 	/* don't use utime/utimes since they follow symlinks */
@@ -434,16 +442,12 @@ static int xmp_chmod(const char *path, mode_t mode)
 	strcpy(path_temp,path);
 	printf("--------------path_temp sebelum chmod: %s---------------\n", path_temp);
 	
-
 	int sz = strlen(path_temp);
 	if (strstr(path_temp, "/YOUTUBER/") != NULL && path_temp[sz - 1] == '1' 
 		&& path_temp[sz - 2] == 'z' && path_temp[sz - 3] == 'i' && path_temp[sz - 4] == '.') {
     	printf("File ekstensi iz1 tidak boleh diubah permissionnya.\n");
     	return -1;
 	}
-	// if (strstr(path_temp, "/YOUTUBER") != NULL && strstr(path_temp,".iz1") != NULL) {
- //    	
-	// }
 
 	enkripsi(path_temp);
 	
@@ -589,13 +593,67 @@ static int xmp_rmdir(const char *path)
 	return 0;
 }
 
-	// void *xmp_init(struct fuse_conn_info *conn) {
+void *xmp_init(struct fuse_conn_info *conn) {
+	char root[1005] = "/home/fandipj/shift4";
+	DIR *dp;
+	struct dirent *de;
+	char vid[1005];
+	char tmpp[1005] = "/Video";
+	enkripsi(tmpp);
+	strcpy(vid, root);
+	strcat(vid, tmpp);
+	int err = mkdir(vid, 0750);
+	printf("%s %d\n", vid, err);
+	dp = opendir(root);
+	int i = 0;
+	while ((de = readdir(dp)) != NULL) {
+		struct stat st;
+		char tmppath[1005];
+		strcpy(tmppath, root);
+		strcat(tmppath, "/");
+		strcpy(tmpp, de->d_name);
+		strcat(tmppath, tmpp);
+		stat(tmppath, &st);
+		if (S_ISREG(st.st_mode) == 0)
+			continue;
+		int sz = strlen(de->d_name);
+		char name[1005];
+		strcpy(name, de->d_name);
+		dekripsi(name);
+		if (name[sz - 1] != '0' || name[sz - 2] != '0' || name[sz - 3] != '0'
+			|| name[sz - 4] != '.')
+			continue;
+		printf("%s\n", tmppath);
+		printf("%s\n", name);
+		pthread_create(&(tid[0]), NULL, &merge, tmppath);
+		pthread_join(tid[0],NULL);
+		i++;
+	}
+	
+	closedir(dp);
 
-	// }
+	return NULL;
+}
 
-	// void xmp_destroy(void*) {
-
-	// }
+void xmp_destroy(void* privateData) {
+	char root[1005] = "/home/fandipj/shift4/g[xO#";
+	DIR *dp;
+	struct dirent *de;
+	printf("%s\n", root);
+	dp = opendir(root);
+	while ((de = readdir(dp)) != NULL) {
+		char path[1005];
+		strcpy(path, root);
+		strcat(path, "/");
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
+			continue;
+		strcat(path, de->d_name);
+		printf("%s\n", path);
+		remove(path);
+	}
+	closedir(dp);
+	rmdir(root);
+}
 
 
 static struct fuse_operations xmp_oper = {
@@ -611,8 +669,8 @@ static struct fuse_operations xmp_oper = {
 	.truncate	= xmp_truncate,
 	.unlink		= xmp_unlink,
 	.rmdir		= xmp_rmdir,
-	// .init		= xmp_init,
-	// .destroy	= xmp_destroy,
+	.init		= xmp_init,
+	.destroy	= xmp_destroy,
 };
 
 int main(int argc, char *argv[])
