@@ -184,14 +184,14 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		return -errno;
 
 	while ((de = readdir(dp)) != NULL) {
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+			continue;
+		}
 		struct stat st;
 		memset(&st, 0, sizeof(st));
 		st.st_ino = de->d_ino;
 		st.st_mode = de->d_type << 12;
 		struct stat tmp;
-		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
-			continue;
-		}
 		char tmppath[1005];
 		strcpy(tmppath, fpath);
 		strcat(tmppath, "/");
