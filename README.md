@@ -448,29 +448,8 @@ static int xmp_chmod(const char *path, mode_t mode)
 ### Soal:
 5. Ketika mengedit suatu file dan melakukan save, maka akan terbuat folder baru bernama Backup kemudian hasil dari save tersebut akan disimpan pada backup dengan nama namafile_[timestamp].ekstensi. Dan ketika file asli dihapus, maka akan dibuat folder bernama RecycleBin, kemudian file yang dihapus beserta semua backup dari file yang dihapus tersebut (jika ada) di zip dengan nama namafile_deleted_[timestamp].zip dan ditaruh ke dalam folder RecycleBin (file asli dan backup terhapus). Dengan format [timestamp] adalah yyyy-MM-dd_HH:mm:ss
 ### Jawaban:
-Pertama - tama pada fungsi `xmp_write()` buat folder `/Backup` kemudian buat thread `makebak()`kemudian didalam nya akan menggunakan fungsi `execlp()`untuk mencopy file backup ke folder `/Backup`. Syntaxnya seperti berikut ini:
+Pertama - tama pada fungsi `xmp_write()` buat folder `/Backup` kemudian mengcopy file yang disave kedalam folder backup dengan format nama file namafile_yyyy-MM-dd_HH:mm:ss.ekstensi dengan menggunakan `exec()`. Jika menemukan file .swp, maka akan diabaikan. Syntaxnya adalah seperti berikut ini:
 ```
-void* makebak(void*arg) {
-	char root[1005] = "/home/fandipj/shift4";
-    char bak[1005] = "/Backup";
-	enkripsi(bak);
-	char arg2[1005];
-	strcpy(arg2, root);
-	strcat(arg2, bak); 
-	char *tmp = (char*)arg;
-    char final[1005];
-    strcat(final, tmp);
-	char* token = strtok(tmp, "/");
-	char last[1005]; 
-    while (token != NULL) { 
-        strcpy(last, token);
-        token = strtok(NULL, "/"); 
-    } 
-    printf("%s\n", final);
-	execlp("cp", "cp", final, arg2, NULL);
-	return NULL;
-}
-
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
@@ -506,19 +485,192 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 		res = -errno;
 
 	close(fd);
+	
 	int sz = strlen(path);
 	if (sz > 4 && path[sz - 1] == 'p' && path[sz - 2] == 'w' && path[sz - 3] == 's' && path[sz - 4] == '.') {
 		return res;
 	}
-	char final[1005] = "/home/fandipj/shift4";
+	char pathdir[1005] = "/home/fandipj/shift4";
 	char root[1005] = "/Backup";
 	enkripsi(root);
-	strcat(final, root);
-	int err = mkdir(final, 0750);
-	printf("%s %d\n", final, err);
-	pthread_create(&(tid[1]), NULL, &makebak, fpath);
-	pthread_join(tid[1],NULL);
+	strcat(pathdir, root);
+	struct stat sb;
+	if(stat(pathdir, &sb)==0 && S_ISDIR(sb.st_mode)){
+      
+    }
+    else{
+        mkdir(pathdir, 0750);
+    }
+	printf("WRITE pathdir%s\n", pathdir);
+
+	char arg2[1005];
+	strcpy(arg2, dirpath);
+	strcat(arg2, root);
+	char tmp[1005],temp[1005],final[1005];
+	strcpy(tmp, path);
+    strcpy(temp, tmp);
+    enkripsi(temp);
+    
+    memset(final, 0, sizeof(final));
+    sprintf(final, "%s%s", dirpath, temp);
+
+	char* token = strtok(tmp, "/");
+	char last[1005]; 
+    while (token != NULL) { 
+        strcpy(last, token);
+        token = strtok(NULL, "/"); 
+    }
+
+    time_t t; 
+    struct tm *timetmp; 
+    char date[100]; 
+    time( &t );
+
+    timetmp = localtime( &t ); 
+    
+    strftime(date, sizeof(date), "%Y-%m-%d_%H:%M:%S", timetmp);
+
+    char ext[1005],nama[1005],hasil[1005];
+  	char* pos = strtok(last, ".");  
+  	strcpy(nama, pos);
+  	pos = strtok(NULL, last);
+  	printf("FINAL0: %s ARGV: %s\n LAST: %s POS: %s\n", final, arg2, last, pos);
+  	if(pos != NULL){
+  		strcat(ext, ".");
+  		strcat(ext, pos);
+  		printf("FINALoiiii: %s ARGV: %s\n LAST: %s ext: %s\n", final, arg2, last, ext);
+  	}
+  	sprintf(hasil, "%s_%s%s", nama, date, ext);
+  	printf("FINAL1: %s ARGV: %s\n LAST: %s HASIL: %s\n", final, arg2, last, hasil);
+    enkripsi(hasil);
+    strcat(arg2, "/");
+    strcat(arg2, hasil);
+    printf("FINAL2: %s ARGV: %s\n LAST: %s HASIL: %s\n", final, arg2, last, hasil);
+	
+	pid_t child_id;
+	child_id = fork();
+	if (child_id == 0) 
+	{
+		// this is child
+		char *argv[4] = {"cp", final, arg2, NULL};
+    	execv("/bin/cp", argv);
+	}
 
 	return res; 
+}
+```
+Kemudian setiap mendelete / meremove suatu file, maka pertama perlu dicek apakah folder RecycleBin sudah ada, jika belum maka perlu dibuat dengan menggunakan fungsi `mkdir()`. Kemudian file yang didelete tersebut beserta file backup annya yang berada di folder Backup akan di zip dan didelete dengan menggunakan `exec()`. Hasil zip - zip annya akan diberi format nama namafile_deleted_yyyy-MM-dd_HH:mm:ss.zip. Kemudian semua file .swp akan diabaikan. Syntaxnya adalah seperti berikut ini:
+```
+static int xmp_unlink(const char *path)
+{
+	char fpath[1000],path_temp[1000];
+	
+	strcpy(path_temp,path);
+	printf("--------------path_temp sebelum readdir: %s---------------\n", path_temp);
+	
+	enkripsi(path_temp);
+	
+	printf("--------------path_temp setelah readdir: %s---------------\n", path_temp);
+	
+	if(strcmp(path_temp,"/") == 0)
+	{
+		sprintf(fpath,"%s",dirpath);
+		printf("--------------path dalam if readdir: %s---------------\n", fpath);
+	}
+	else{
+		sprintf(fpath, "%s%s",dirpath,path_temp);
+		printf("--------------path1 dalam else readdir: %s---------------\n", fpath);
+	}
+
+	int res, status, isFile;
+
+	int sz = strlen(path);
+	if (sz > 4 && path[sz - 1] == 'p' && path[sz - 2] == 'w' && path[sz - 3] == 's' && path[sz - 4] == '.') {
+		res = unlink(fpath);
+			
+		if (res == -1)
+			return -errno;
+		return 0;
+	}
+	isFile = access(fpath, F_OK);
+
+	if(isFile<0)
+		return 0;
+
+	char pathdirbackup[1005];
+	char pathdirbin[1005] = "/home/fandipj/shift4";
+	char rootbackup[1005] = "Backup", root[1005]= "/RecycleBin";
+	enkripsi(rootbackup);
+	enkripsi(root);
+	strcat(pathdirbackup, rootbackup);
+	strcat(pathdirbin, root);
+	printf("UNLINK pathdirbackup%s\n", pathdirbackup);
+	printf("UNLINK pathdirbin%s\n", pathdirbin);
+
+	struct stat sb;
+	if(stat(pathdirbin, &sb)==0 && S_ISDIR(sb.st_mode)){
+      
+    }
+    else{
+        mkdir(pathdirbin, 0750);
+    }
+
+    time_t t; 
+    struct tm *timetmp; 
+    char date[100]; 
+    time( &t );
+
+    timetmp = localtime( &t ); 
+    
+    strftime(date, sizeof(date), "%Y-%m-%d_%H:%M:%S", timetmp);
+
+	char tmp[1005];
+    char pathasal[1005];
+ 
+    int index = getLastPosChar(fpath, '/');
+    strncpy(pathasal,fpath,index);
+    pathasal[index]='\0';
+
+	strcpy(tmp,path);
+	char* token = strtok(tmp, "/");
+	char last[1005]; 
+    while (token != NULL) { 
+        strcpy(last, token);
+        token = strtok(NULL, "/"); 
+    }
+	char namatanpaext[1005],hasil[1005],namafile[1005];
+	strcpy(namafile,last);
+  	char* pos = strtok(last, ".");  
+  	strcpy(namatanpaext, pos);
+  	sprintf(hasil, "%s_deleted_%s.zip", namatanpaext, date);
+    printf("AWAL fpath: %s pathasal: %s pathdirbin: %s namafile: %s pathdirbackup: %s Hasil: %s\n", fpath, pathasal, pathdirbin, namafile, pathdirbackup, hasil);
+    enkripsi(hasil);
+  	enkripsi(namafile);
+  	enkripsi(namatanpaext);
+  	strcat(pathdirbin, "/");
+  	strcat(pathdirbin, hasil);
+    strcat(pathdirbackup, "/");
+    strcat(pathdirbackup, namatanpaext);
+    strcat(pathdirbin, "\0");
+    printf("fpath: %s pathasal: %s pathdirbin: %s namafile: %s pathdirbackup: %s Hasil: %s\n", fpath, pathasal, pathdirbin, namafile, pathdirbackup, hasil);
+	char command[1005];
+
+	sprintf(command, "cd %s && zip '%s' '%s' '%s'* && rm '%s'*", pathasal, pathdirbin, namafile, pathdirbackup, pathdirbackup);
+	printf("==========COMMAND=======%s\n",command);
+	pid_t child_id;
+	child_id = fork();
+	if (child_id == 0) 
+	{
+		// this is child
+    	execl("/bin/sh","/bin/sh", "-c", command, NULL);
+	}
+
+	while((wait(&status))>0);
+
+	res = unlink(fpath);
+	if (res == -1)
+		return -errno;
+
+	return 0;
 }
 ```
