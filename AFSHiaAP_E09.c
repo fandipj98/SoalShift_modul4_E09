@@ -20,7 +20,7 @@ static const char *dirpath = "/home/fandipj/shift4";
 char cipher[] = "qE1~ YMUR2\"`hNIdPzi%^t@(Ao:=CQ,nx4S[7mHFye#aT6+v)DfKL$r?bkOGB>}!9_wV']jcp5JZ&Xl|\\8s;g<{3.u*W-0";
 char temp_path[1005];
 int key;
-pthread_t tid[1005];
+pthread_t tid[1005], renamethread, savethread;
 int flag = 1;
 
 char enkripsi(char *nama)
@@ -53,21 +53,28 @@ char dekripsi(char *nama)
 
 void* renamefile(void *arg)
 {
+
 	char *path_now = (char*)arg;
-	pthread_t id = pthread_self();
-	if (pthread_equal(id, tid[0])) {
+	printf("MASUK THREAD %s\n", path_now);
+	// pthread_t id = pthread_self();
+	// if (pthread_equal(id, tid[0])) {
+		dekripsi(path_now);
+		printf("%s NOW \n", path_now);
 		if (strstr(path_now, "/YOUTUBER") != NULL) {
+			printf("MASUK");
 			while (flag == 0) {}
 			char newname[1005],oldname[1005];
 			enkripsi(path_now);
-			sprintf(oldname, "%s%s",dirpath,path_now);
+			strcpy(oldname, path_now);
+			printf("NAME %s %s\n", oldname, newname);
 			strcpy(newname, oldname);
 			char ext[] = ".iz1";
 			enkripsi(ext);
 			strcat(newname, ext);
 			rename(oldname, newname);
+			flag=1;
 		}
-	}
+	// }
 	return NULL;
 }
 
@@ -129,26 +136,103 @@ void* merge(void *arg) {
 }
 
 void* makebak(void*arg) {
-	char root[1005] = "/home/fandipj/shift4";
-    char bak[1005] = "/Backup";
-	enkripsi(bak);
-	char arg2[1005];
-	strcpy(arg2, root);
-	strcat(arg2, bak); 
-	char *tmp = (char*)arg;
-    char final[1005];
-    strcat(final, tmp);
-	char* token = strtok(tmp, "/");
-	char last[1005]; 
-    while (token != NULL) { 
-        strcpy(last, token);
-        token = strtok(NULL, "/"); 
-    } 
-    printf("%s\n", final);
-	execlp("cp", "cp", final, arg2, NULL);
+ //    char bak[1005] = "/Backup";
+	// enkripsi(bak);
+	// char arg2[1005];
+	// strcpy(arg2, dirpath);
+	// strcat(arg2, bak); 
+	// char *tmp = (char*)arg;
+ //    char temp[1005],final[1005];
+ //    strcat(temp, tmp);
+ //    enkripsi(temp);
+ //    sprintf(final, "%s%s", dirpath, temp);
+
+	// char* token = strtok(tmp, "/");
+	// char last[1005]; 
+ //    while (token != NULL) { 
+ //        strcpy(last, token);
+ //        token = strtok(NULL, "/"); 
+ //    }
+
+ //    time_t t; 
+ //    struct tm *timetmp; 
+ //    char date[100]; 
+ //    time( &t );
+
+ //    timetmp = localtime( &t ); 
+    
+ //    strftime(date, sizeof(date), "%Y-%m-%d_%H:%M:%S", timetmp);
+
+ //    char ext[1005],nama[1005],hasil[1005];
+ //     //position of last char 
+ //  	printf("MASUK PAK EKO\n");
+ //  	//char *ok = last;
+ //  	char* pos = strtok(last, ".");  
+ //  	printf("MASUK WOE\n");
+ //  	strcpy(nama, pos);
+ //  	printf("MASUK hooo\n");
+ //  	pos = strtok(NULL, last);
+ //  	printf("MASUK YESS\n");
+ //  	printf("FINAL0: %s ARGV: %s\n LAST: %s POS: %s\n", final, arg2, last, pos);
+ //  	if(pos != NULL){
+ //  		strcat(ext, ".");
+ //  		strcat(ext, pos);
+ //  		printf("FINALoiiii: %s ARGV: %s\n LAST: %s ext: %s\n", final, arg2, last, ext);
+ //  	}
+ //  	sprintf(hasil, "%s_%s%s", nama, date, ext);
+ //  	printf("FINAL1: %s ARGV: %s\n LAST: %s HASIL: %s\n", final, arg2, last, hasil);
+ //    enkripsi(hasil);
+ //    strcat(arg2, "/");
+ //    strcat(arg2, hasil);
+ //    printf("FINAL2: %s ARGV: %s\n LAST: %s HASIL: %s\n", final, arg2, last, hasil);
+	// pid_t child_id;
+	// child_id = fork();
+	// if (child_id == 0) 
+	// {
+	// 	// this is child
+	// 	char *argv[4] = {"cp", final, arg2, NULL};
+ //    	execv("/bin/cp", argv);
+	// } 
+	// else 
+	// {
+	// 	// this is parent
+	// 	return 0;
+	// }
 	return NULL;
 }
 
+int isDigit(char c) {
+	if ('0' <= c && c <= '9') {
+		return 1;
+	}
+	return 0;
+}
+
+int checksplit(char* path) {
+	// dekripsi(path);
+	char qqq[1005];
+	strcpy(qqq, path);
+	dekripsi(qqq);
+	printf("SPLIT %s\n", qqq);
+	if (strlen(qqq) < 5)
+		return 0;
+	int sz = strlen(qqq);
+	if (qqq[sz - 4] != '.')
+		return 0;
+	if (isDigit(qqq[sz - 1]) == 0 || isDigit(qqq[sz - 2]) == 0 || isDigit(qqq[sz - 3]) == 0)
+		return 0;
+	return 1;
+}
+
+int getLastPosChar(char *str, char chr){
+	int len = strlen(str);
+	for(int i=len-1; i>=0; i--){
+		if(str[i]==chr){
+			return i;
+		}
+	}
+	return 0;
+}
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
@@ -206,7 +290,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		return -errno;
 
 	while ((de = readdir(dp)) != NULL) {
-		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0 || checksplit(de->d_name) == 1) {
 			continue;
 		}
 		struct stat st;
@@ -378,18 +462,88 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 		res = -errno;
 
 	close(fd);
+
+	// flag = 2;
+	// char kkk[1005];
+	// strcpy(kkk, fpath);
+	// int err = pthread_create(&(renamethread), NULL, &renamefile, kkk);
+	// if (err != 0)
+	// 	printf("\n ===***can't create thread : [%s]",strerror(err));
+	// else 
+	// 	printf("\n ===***create thread success\n");
+
 	int sz = strlen(path);
 	if (sz > 4 && path[sz - 1] == 'p' && path[sz - 2] == 'w' && path[sz - 3] == 's' && path[sz - 4] == '.') {
 		return res;
 	}
-	char final[1005] = "/home/fandipj/shift4";
+	char pathdir[1005] = "/home/fandipj/shift4";
 	char root[1005] = "/Backup";
 	enkripsi(root);
-	strcat(final, root);
-	int err = mkdir(final, 0750);
-	printf("%s %d\n", final, err);
-	pthread_create(&(tid[1]), NULL, &makebak, fpath);
-	pthread_join(tid[1],NULL);
+	strcat(pathdir, root);
+	struct stat sb;
+	if(stat(pathdir, &sb)==0 && S_ISDIR(sb.st_mode)){
+      
+    }
+    else{
+        mkdir(pathdir, 0750);
+    }
+	printf("WRITE pathdir%s\n", pathdir);
+	//char www[1005];
+	//strcpy(www, path);
+	//pthread_create(&(savethread), NULL, &makebak, www);
+
+	char arg2[1005];
+	strcpy(arg2, dirpath);
+	strcat(arg2, root);
+	char tmp[1005],temp[1005],final[1005];
+	strcpy(tmp, path);
+    strcpy(temp, tmp);
+    enkripsi(temp);
+    
+    memset(final, 0, sizeof(final));
+    sprintf(final, "%s%s", dirpath, temp);
+
+	char* token = strtok(tmp, "/");
+	char last[1005]; 
+    while (token != NULL) { 
+        strcpy(last, token);
+        token = strtok(NULL, "/"); 
+    }
+
+    time_t t; 
+    struct tm *timetmp; 
+    char date[100]; 
+    time( &t );
+
+    timetmp = localtime( &t ); 
+    
+    strftime(date, sizeof(date), "%Y-%m-%d_%H:%M:%S", timetmp);
+
+    char ext[1005],nama[1005],hasil[1005];
+  	char* pos = strtok(last, ".");  
+  	strcpy(nama, pos);
+  	pos = strtok(NULL, last);
+  	printf("FINAL0: %s ARGV: %s\n LAST: %s POS: %s\n", final, arg2, last, pos);
+  	if(pos != NULL){
+  		strcat(ext, ".");
+  		strcat(ext, pos);
+  		printf("FINALoiiii: %s ARGV: %s\n LAST: %s ext: %s\n", final, arg2, last, ext);
+  	}
+  	sprintf(hasil, "%s_%s%s", nama, date, ext);
+  	printf("FINAL1: %s ARGV: %s\n LAST: %s HASIL: %s\n", final, arg2, last, hasil);
+    enkripsi(hasil);
+    strcat(arg2, "/");
+    strcat(arg2, hasil);
+    printf("FINAL2: %s ARGV: %s\n LAST: %s HASIL: %s\n", final, arg2, last, hasil);
+	
+	pid_t child_id;
+	child_id = fork();
+	if (child_id == 0) 
+	{
+		// this is child
+		char *argv[4] = {"cp", final, arg2, NULL};
+    	execv("/bin/cp", argv);
+	}
 
 	return res; 
 }
@@ -419,8 +573,6 @@ static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		printf("--------------path dalam else create: %s---------------\n", fpath);
 	}
 
-	memset(temp_path,0,sizeof(temp_path));
-	strcpy(temp_path,path);
 	
 	int fd;
 	
@@ -429,7 +581,9 @@ static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		return -errno;
 	close(fd);
 	flag = 0;
-	int err = pthread_create(&(tid[0]), NULL, &renamefile, fpath);
+	char kkk[1005];
+	strcpy(kkk, fpath);
+	int err = pthread_create(&(renamethread), NULL, &renamefile, kkk);
 	if (err != 0)
 		printf("\n ===***can't create thread : [%s]",strerror(err));
 	else 
@@ -474,12 +628,18 @@ static int xmp_chmod(const char *path, mode_t mode)
 {
 	char fpath[1000],path_temp[1000];
 	
+	char ppp[1005];
 	strcpy(path_temp,path);
-	printf("--------------path_temp sebelum chmod: %s---------------\n", path_temp);
-	
+	// printf("--------------path_temp sebelum chmod: %s---------------\n", path_temp);
+	enkripsi(path_temp);
+	sprintf(ppp, "%s%s", dirpath, path_temp);
+	printf("PPP %s\n", ppp);
 	int sz = strlen(path_temp);
+	struct stat st;
+	stat(ppp, &st);
+	dekripsi(path_temp);
 	if (strstr(path_temp, "/YOUTUBER/") != NULL && path_temp[sz - 1] == '1' 
-		&& path_temp[sz - 2] == 'z' && path_temp[sz - 3] == 'i' && path_temp[sz - 4] == '.') {
+		&& path_temp[sz - 2] == 'z' && path_temp[sz - 3] == 'i' && path_temp[sz - 4] == '.' && S_ISREG(st.st_mode) != 0) {
     	printf("File ekstensi iz1 tidak boleh diubah permissionnya.\n");
     	return -1;
 	}
@@ -589,7 +749,90 @@ static int xmp_unlink(const char *path)
 		printf("--------------path1 dalam else readdir: %s---------------\n", fpath);
 	}
 
-	int res;
+	int res, status, isFile;
+
+	int sz = strlen(path);
+	if (sz > 4 && path[sz - 1] == 'p' && path[sz - 2] == 'w' && path[sz - 3] == 's' && path[sz - 4] == '.') {
+		res = unlink(fpath);
+			
+		if (res == -1)
+			return -errno;
+		return 0;
+	}
+	isFile = access(fpath, F_OK);
+
+	if(isFile<0)
+		return 0;
+
+	char pathdirbackup[1005];
+	char pathdirbin[1005] = "/home/fandipj/shift4";
+	char rootbackup[1005] = "Backup", root[1005]= "/RecycleBin";
+	enkripsi(rootbackup);
+	enkripsi(root);
+	strcat(pathdirbackup, rootbackup);
+	strcat(pathdirbin, root);
+	printf("UNLINK pathdirbackup%s\n", pathdirbackup);
+	printf("UNLINK pathdirbin%s\n", pathdirbin);
+
+	struct stat sb;
+	if(stat(pathdirbin, &sb)==0 && S_ISDIR(sb.st_mode)){
+      
+    }
+    else{
+        mkdir(pathdirbin, 0750);
+    }
+
+    time_t t; 
+    struct tm *timetmp; 
+    char date[100]; 
+    time( &t );
+
+    timetmp = localtime( &t ); 
+    
+    strftime(date, sizeof(date), "%Y-%m-%d_%H:%M:%S", timetmp);
+
+	char tmp[1005];
+    char pathasal[1005];
+ 
+    int index = getLastPosChar(fpath, '/');
+    strncpy(pathasal,fpath,index);
+    pathasal[index]='\0';
+
+	strcpy(tmp,path);
+	char* token = strtok(tmp, "/");
+	char last[1005]; 
+    while (token != NULL) { 
+        strcpy(last, token);
+        token = strtok(NULL, "/"); 
+    }
+	char namatanpaext[1005],hasil[1005],namafile[1005];
+	strcpy(namafile,last);
+  	char* pos = strtok(last, ".");  
+  	strcpy(namatanpaext, pos);
+  	sprintf(hasil, "%s_deleted_%s.zip", namatanpaext, date);
+    printf("AWAL fpath: %s pathasal: %s pathdirbin: %s namafile: %s pathdirbackup: %s Hasil: %s\n", fpath, pathasal, pathdirbin, namafile, pathdirbackup, hasil);
+    enkripsi(hasil);
+  	enkripsi(namafile);
+  	enkripsi(namatanpaext);
+  	strcat(pathdirbin, "/");
+  	strcat(pathdirbin, hasil);
+    strcat(pathdirbackup, "/");
+    strcat(pathdirbackup, namatanpaext);
+    strcat(pathdirbin, "\0");
+    printf("fpath: %s pathasal: %s pathdirbin: %s namafile: %s pathdirbackup: %s Hasil: %s\n", fpath, pathasal, pathdirbin, namafile, pathdirbackup, hasil);
+	char command[1005];
+
+	sprintf(command, "cd %s && zip '%s' '%s' '%s'* && rm '%s'*", pathasal, pathdirbin, namafile, pathdirbackup, pathdirbackup);
+	printf("==========COMMAND=======%s\n",command);
+	pid_t child_id;
+	child_id = fork();
+	if (child_id == 0) 
+	{
+		// this is child
+    	execl("/bin/sh","/bin/sh", "-c", command, NULL);
+	}
+
+	while((wait(&status))>0);
 
 	res = unlink(fpath);
 	if (res == -1)
@@ -671,7 +914,10 @@ void *xmp_init(struct fuse_conn_info *conn) {
 }
 
 void xmp_destroy(void* privateData) {
-	char root[1005] = "/home/fandipj/shift4/g[xO#";
+	char root[1005] = "/home/fandipj/shift4";
+	char vid[1005] = "/Video";
+	enkripsi(vid);
+	strcat(root, vid);
 	DIR *dp;
 	struct dirent *de;
 	printf("%s\n", root);
@@ -709,6 +955,7 @@ static struct fuse_operations xmp_oper = {
 
 int main(int argc, char *argv[])
 {
+	printf("Input Key: ");
 	scanf("%d",&key);
 	umask(0);
 	return fuse_main(argc, argv, &xmp_oper, NULL);
